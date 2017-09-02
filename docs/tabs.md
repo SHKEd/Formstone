@@ -2,13 +2,22 @@
 
 A jQuery plugin for simple tabs.
 
+<!-- HEADER END -->
+
+<!-- NAV START -->
+
 * [Use](#use)
 * [Options](#options)
 * [Events](#events)
 * [Methods](#methods)
 * [CSS](#css)
 
-## Use 
+<!-- NAV END -->
+
+<!-- DEMO BUTTON -->
+
+## <a name="use"></a> Using Tabs
+
 
 #### Main
 
@@ -16,6 +25,7 @@ A jQuery plugin for simple tabs.
 tabs.js
 tabs.css
 ```
+
 
 #### Dependencies
 
@@ -35,23 +45,30 @@ $(".tab").tabs();
 ```
 
 ```markup
-<nav>
-	<a href="#tab-one" class="tab" data-tabs-group="tab-group">One</a>
-	<a href="#tab-two" class="tab" data-tabs-group="tab-group">Two</a>
-	<a href="#tab-three" class="tab" data-tabs-group="tab-group">Three</a>
-</nav>
-<div id="tab-one">
-	...
-</div>
-<div id="tab-two">
-	...
-</div>
-<div id="tab-three">
-	...
+<div role="tablist">
+	<nav>
+		<a href="#tab-one" class="tab" data-tabs-group="tab-group">One</a>
+		<a href="#tab-two" class="tab" data-tabs-group="tab-group">Two</a>
+		<a href="#tab-three" class="tab" data-tabs-group="tab-group">Three</a>
+	</nav>
+	<div id="tab-one">
+		...
+	</div>
+	<div id="tab-two">
+		...
+	</div>
+	<div id="tab-three">
+		...
+	</div>
 </div>
 ```
 
-## Options
+### Accessibility
+
+The `role="tablist"` attribute should be set on a common parent of both the tabs and tab targets to ensure accessibility support. 
+
+
+## <a name="options"></a> Options
 
 Set instance options by passing a valid object at initialization, or to the public `defaults` method. Custom options for a specific instance can also be set by attaching a `data-tabs-options` attribute to the target elment. This attribute should contain the properly formatted JSON object representing the custom options.
 
@@ -60,9 +77,10 @@ Set instance options by passing a valid object at initialization, or to the publ
 | `customClass` | `string` | `''` | Class applied to instance |
 | `maxWidth` | `string` | `Infinity` | Width at which to auto-disable plugin |
 | `mobileMaxWidth` | `string` | `'740px'` | Width at which to auto-disable mobile styles |
-| `vertical` | `boolean` | `false` | Flag to draw vertical tab set |
+| `theme` | `string` | `"fs-light"` | Theme class name |
 
-## Events
+<hr>
+## <a name="events"></a> Events
 
 Events are triggered on the target instance's element, unless otherwise stated.
 
@@ -70,7 +88,8 @@ Events are triggered on the target instance's element, unless otherwise stated.
 | --- | --- |
 | `update.tabs` | Tab activated |
 
-## Methods
+<hr>
+## <a name="methods"></a> Methods
 
 Methods are publicly available to all active instances, unless otherwise stated.
 
@@ -120,7 +139,8 @@ Enables instance.
 $(".target").tabs("enable");
 ```
 
-## CSS
+<hr>
+## <a name="css"></a> CSS
 
 | Class | Type | Description |
 | --- | --- | --- |

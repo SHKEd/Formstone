@@ -2,13 +2,22 @@
 
 A jQuery plugin for full-frame image and video backgrounds.
 
+<!-- HEADER END -->
+
+<!-- NAV START -->
+
 * [Use](#use)
 * [Options](#options)
 * [Events](#events)
 * [Methods](#methods)
 * [CSS](#css)
 
-## Use 
+<!-- NAV END -->
+
+<!-- DEMO BUTTON -->
+
+## <a name="use"></a> Using Background
+
 
 #### Main
 
@@ -16,6 +25,7 @@ A jQuery plugin for full-frame image and video backgrounds.
 background.js
 background.css
 ```
+
 
 #### Dependencies
 
@@ -74,7 +84,7 @@ $(".target").background({
 
 Note: Mobile browsers do not allow videos to auto play due to bandwidth concerns. Background will not attempt to load videos on mobile devices, instead the poster image will be displayed.
 
-### YouTube Video
+<!-- ### YouTube Video
 
 Create a YouTube video Background by passing the YouTube embed URL as the source. If you do not define a poster, the YouTube thumbnail will be used:
 
@@ -85,9 +95,11 @@ $(".target").background({
 		video: "//www.youtube.com/embed/VIDEO_ID"
 	}
 });
-```
+``` -->
 
-## Options
+
+
+## <a name="options"></a> Options
 
 Set instance options by passing a valid object at initialization, or to the public `defaults` method. Custom options for a specific instance can also be set by attaching a `data-background-options` attribute to the target elment. This attribute should contain the properly formatted JSON object representing the custom options.
 
@@ -96,12 +108,14 @@ Set instance options by passing a valid object at initialization, or to the publ
 | `autoPlay` | `boolean` | `true` | Autoplay video |
 | `customClass` | `string` | `''` | Class applied to instance |
 | `embedRatio` | `number` | `1.777777` | Video / embed ratio (16/9) |
+| `lazy` | `boolean` | `false` | Lazy load with scroll |
+| `lazyEdge` | `int` | `100` | Lazy load edge |
 | `loop` | `boolean` | `true` | Loop video |
 | `mute` | `boolean` | `true` | Mute video |
-| `source` | `string OR object` | `null` | Source image (string or object) or video (object) or YouTube (object) |
-| `youtubeOptions` | `object` | `null` | Custom YouTube player parameters (to be used cautiously); See https://developers.google.com/youtube/player_parameters for more |
+| `source` | `string OR object` | `null` | Source image (string or object) or video (object) |
 
-## Events
+<hr>
+## <a name="events"></a> Events
 
 Events are triggered on the target instance's element, unless otherwise stated.
 
@@ -109,8 +123,10 @@ Events are triggered on the target instance's element, unless otherwise stated.
 | --- | --- |
 | `loaded.background` | Background media loaded |
 | `ready.background` | Background media ready |
+| `error.background` | Background media error |
 
-## Methods
+<hr>
+## <a name="methods"></a> Methods
 
 Methods are publicly available to all active instances, unless otherwise stated.
 
@@ -127,15 +143,12 @@ $(".target").background("load", { "0px": "path/to/image-small.jpg", "980px": "pa
 ```javascript
 $(".target").background("load", { "poster": "path/to/image.jpg", "webm": "path/to/video.webm", "mp4": "path/to/video.mp4", "ogg": "path/to/video.ogv" });
 ```
-```javascript
-$(".target").background("load", { "poster": "path/to/image.jpg", "video": "//www.youtube.com/embed/VIDEO_ID" });
-```
 
 #### Parameters
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| `source` | `string OR object` | &nbsp; | Source image (string or object) or video (object) or YouTube (object); |
+| `source` | `string OR object` | &nbsp; | Source image (string or object) or video (object) |
 
 ### mute
 
@@ -177,7 +190,8 @@ Unmutes target video
 $(".target").background("unmute");
 ```
 
-## CSS
+<hr>
+## <a name="css"></a> CSS
 
 | Class | Type | Description |
 | --- | --- | --- |

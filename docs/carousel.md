@@ -2,13 +2,22 @@
 
 A jQuery plugin for simple content carousels.
 
+<!-- HEADER END -->
+
+<!-- NAV START -->
+
 * [Use](#use)
 * [Options](#options)
 * [Events](#events)
 * [Methods](#methods)
 * [CSS](#css)
 
-## Use 
+<!-- NAV END -->
+
+<!-- DEMO BUTTON -->
+
+## <a name="use"></a> Using Carousel
+
 
 #### Main
 
@@ -16,6 +25,7 @@ A jQuery plugin for simple content carousels.
 carousel.js
 carousel.css
 ```
+
 
 #### Dependencies
 
@@ -65,7 +75,8 @@ $(".target").carousel({
 
 Note: Carousel items that don't meet jQuery's `:visible` selector requirements will not be counted as active items. This can be useful when filtering or updating a set of items.
 
-## Options
+
+## <a name="options"></a> Options
 
 Set instance options by passing a valid object at initialization, or to the public `defaults` method. Custom options for a specific instance can also be set by attaching a `data-carousel-options` attribute to the target elment. This attribute should contain the properly formatted JSON object representing the custom options.
 
@@ -75,7 +86,7 @@ Set instance options by passing a valid object at initialization, or to the publ
 | `autoHeight` | `boolean` | `false` | Flag to adjust carousel height to visible item(s) |
 | `autoTime` | `int` | `8000` | Auto advance time |
 | `contained` | `boolean` | `true` | Flag for 'overflow: visible' |
-| `controls` | `boolean or object` | `true` | Flag to draw controls OR object containing container, next and previous control selectors |
+| `controls` | `boolean or object` | `true` | Flag to draw controls OR object containing container, next and previous control selectors (Must be fully qualified selectors) |
 | `customClass` | `string` | `''` | Class applied to instance |
 | `fill` | `boolean` | `false` | Flag to fill viewport if item count is less then show count |
 | `infinite` | `boolean` | `false` | Flag for looping items |
@@ -86,20 +97,25 @@ Set instance options by passing a valid object at initialization, or to the publ
 | `maxWidth` | `string` | `'Infinity'` | Width at which to auto-disable plugin |
 | `minWidth` | `string` | `'0'` | Width at which to auto-disable plugin |
 | `paged` | `boolean` | `false` | Flag for paged items |
-| `pagination` | `boolean` | `true` | Flag to draw pagination |
-| `show` | `int / object` | `1` | Items visible per page; Object for responsive counts |
+| `pagination` | `boolean or string` | `true` | Flag to draw pagination OR string containing pagination target selector (Must be fully qualified selector) |
 | `rtl` | `boolean` | `false` | Right to Left display |
+| `show` | `int / object` | `1` | Items visible per page; Object for responsive counts |
+| `single` | `boolean` | `false` | Flag to display single item at a time |
+| `theme` | `string` | `"fs-light"` | Theme class name |
 | `useMargin` | `boolean` | `false` | Use margins instead of css transitions (legacy browser support) |
 
-## Events
+<hr>
+## <a name="events"></a> Events
 
 Events are triggered on the target instance's element, unless otherwise stated.
 
 | Event | Description |
 | --- | --- |
+| `itemClick.carousel` | Item clicked; Triggered on carousel item |
 | `update.carousel` | Carousel position updated |
 
-## Methods
+<hr>
+## <a name="methods"></a> Methods
 
 Methods are publicly available to all active instances, unless otherwise stated.
 
@@ -121,7 +137,7 @@ $(".target").carousel("enable");
 
 ### jump
 
-Jump instance of plugin to specific page
+Jump instance of plugin to specific page; Alias of `jumpPage`
 
 ```javascript
 $(".target").carousel("jump", 1);
@@ -134,17 +150,66 @@ $(".target").carousel("jump", 1);
 | `index` | `int` | &nbsp; | New index |
 | `silent` | `boolean` | &nbsp; | Flag to prevent triggering update event |
 
+### jumpItem
+
+Jump instance of plugin to specific item
+
+```javascript
+$(".target").carousel("jumpItem", 1);
+```
+
+#### Parameters
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `index` | `int` | &nbsp; | New item index |
+| `silent` | `boolean` | &nbsp; | Flag to prevent triggering update event |
+
+### jumpPage
+
+Jump instance of plugin to specific page
+
+```javascript
+$(".target").carousel("jumpPage", 1);
+```
+
+#### Parameters
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `index` | `int` | &nbsp; | New index |
+| `silent` | `boolean` | &nbsp; | Flag to prevent triggering update event |
+
 ### next
 
-Move to next item
+Move to next page; Alias of `nextPage`
 
+```javascript
+$(".target").carousel("next");
+```
+
+### nextPage
+
+Move to next page
+
+```javascript
+$(".target").carousel("nextPage");
+```
 
 ### previous
 
-Move to the previous item
+Move to the previous page; Alias of `previousPage`
 
 ```javascript
 $(".target").carousel("previous");
+```
+
+### previousPage
+
+Move to the previous page
+
+```javascript
+$(".target").carousel("previousPage");
 ```
 
 ### reset
@@ -171,11 +236,12 @@ Updates carousel items
 $(".target").carousel("update", "...");
 ```
 
-## CSS
+<hr>
+## <a name="css"></a> CSS
 
 | Class | Type | Description |
 | --- | --- | --- |
-| `.fs-carousel-element` | `element` | Target elmement |
+| `.fs-carousel-element` | `element` | Target element |
 | `.fs-carousel` | `element` | Base widget class |
 | `.fs-carousel.fs-enabled` | `modifier` | Indicates enabled state |
 | `.fs-carousel.fs-rtl` | `modifier` | Indicates right to left display |

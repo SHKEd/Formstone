@@ -1,4 +1,16 @@
-;(function ($, Formstone, undefined) {
+/* global define */
+
+(function(factory) {
+	if (typeof define === "function" && define.amd) {
+		define([
+			"jquery",
+			"./core",
+			"./touch"
+		], factory);
+	} else {
+		factory(jQuery, Formstone);
+	}
+}(function($, Formstone) {
 
 	"use strict";
 
@@ -44,14 +56,15 @@
 
 		html += '<div class="' + RawClasses.bar + '">';
 		html += '<div class="' + RawClasses.track + '">';
-		html += '<span class="' + RawClasses.handle + '"></span>';
+		html += '<button type="button" class="' + RawClasses.handle + '" aria-hidden="true" tabindex="-1"></button>';
 		html += '</div></div>';
 
 		data.paddingRight     = parseInt(this.css("padding-right"), 10);
 		data.paddingBottom    = parseInt(this.css("padding-bottom"), 10);
+		data.thisClasses      = [RawClasses.base, data.theme, data.customClass, (data.horizontal ? RawClasses.horizontal : "")];
 
-		this.addClass( [RawClasses.base, data.customClass, (data.horizontal ? RawClasses.horizontal : "")].join(" ") )
-			.wrapInner('<div class="' + RawClasses.content + '" />')
+		this.addClass(data.thisClasses.join(" "))
+			.wrapInner('<div class="' + RawClasses.content + '" tabindex="0"></div>')
 			.prepend(html);
 
 		data.$content    = this.find(Classes.content);
@@ -61,10 +74,12 @@
 
 		data.trackMargin = parseInt(data.trackMargin, 10);
 
+		// Events
+
 		data.$content.on(Events.scroll, data, onScroll);
 
 		if (data.mouseWheel) {
-			data.$content.on("DOMMouseScroll" + Events.namespace + " mousewheel" + Events.namespace, data, onMouseWheel);
+			data.$content.on("wheel" + Events.namespace, data, onMouseWheel);
 		}
 
 		data.$track.fsTouch({
@@ -72,7 +87,9 @@
 			pan     : true
 		}).on(Events.panStart, data, onPanStart)
 		  .on(Events.pan, data, onPan)
-		  .on(Events.panEnd, data, onPanEnd);
+		  .on(Events.panEnd, data, onPanEnd)
+		  .on(Events.click, Functions.killEvent)
+		  .on("wheel" + Events.namespace, data, onTrackMouseWheel);
 
 		resizeInstance(data);
 
@@ -90,12 +107,17 @@
 		data.$track.fsTouch("destroy");
 
 		data.$bar.remove();
+
 		data.$content.off(Events.namespace)
 					 .contents()
 					 .unwrap();
 
-		this.removeClass( [RawClasses.base, RawClasses.active, data.customClass].join(" ") )
+		this.removeClass(data.thisClasses.join(" "))
 			.off(Events.namespace);
+
+		if (this.attr("id") === data.rawGuid) {
+			this.removeAttr("id");
+		}
 	}
 
 	/**
@@ -250,7 +272,7 @@
 		positionContent(data, handlePosition);
 
 		onScroll({
-			data    : data
+			data : data
 		});
 
 		data.$el.removeClass(RawClasses.setup);
@@ -310,6 +332,10 @@
 		}
 	}
 
+	function onTrackMouseWheel(e) {
+		onMouseWheel(e, true);
+	}
+
 	/**
 	 * @method private
 	 * @name onMouseWheel
@@ -317,7 +343,7 @@
 	 * @param e [object] "Event data"
 	 */
 
-	function onMouseWheel(e) {
+	function onMouseWheel(e, fromTrack) {
 		// http://stackoverflow.com/questions/5802467/prevent-scrolling-of-parent-element/16324762#16324762
 		var data = e.data,
 			delta,
@@ -329,13 +355,19 @@
 				scrollWidth  = data.$content[0].scrollWidth,
 				width        = data.$content.outerWidth();
 
-			delta     = (e.type === "DOMMouseScroll") ? (e.originalEvent.detail * -40) : e.originalEvent.wheelDelta;
-			direction = (delta > 0) ? "right" : "left";
+			delta = e.originalEvent.deltaX * ( (fromTrack === true) ? -1 : 1 );
 
-			if (direction === "left" && -delta > (scrollWidth - width - scrollLeft)) {
+			if (fromTrack === true) {
+				data.$content.scrollLeft(scrollLeft - delta);
+				return killEvent(e);
+			}
+
+			direction = (delta < 0) ? "right" : "left";
+
+			if (direction === "left" && delta > (scrollWidth - width - scrollLeft)) {
 				data.$content.scrollLeft(scrollWidth);
 				return killEvent(e);
-			} else if (direction === "right" && delta > scrollLeft) {
+			} else if (direction === "right" && -delta > scrollLeft) {
 				data.$content.scrollLeft(0);
 				return killEvent(e);
 			}
@@ -345,13 +377,19 @@
 				scrollHeight = data.$content[0].scrollHeight,
 				height       = data.$content.outerHeight();
 
-			delta     = (e.type === "DOMMouseScroll") ? (e.originalEvent.detail * -40) : e.originalEvent.wheelDelta;
-			direction = (delta > 0) ? "up" : "down";
+			delta = e.originalEvent.deltaY * ( (fromTrack === true) ? -1 : 1 );
 
-			if (direction === "down" && -delta > (scrollHeight - height - scrollTop)) {
+			if (fromTrack === true) {
+				data.$content.scrollTop(scrollTop - delta);
+				return killEvent(e);
+			}
+
+			direction = (delta < 0) ? "up" : "down";
+
+			if (direction === "down" && delta > (scrollHeight - height - scrollTop)) {
 				data.$content.scrollTop(scrollHeight);
 				return killEvent(e);
-			} else if (direction === "up" && delta > scrollTop) {
+			} else if (direction === "up" && -delta > scrollTop) {
 				data.$content.scrollTop(0);
 				return killEvent(e);
 			}
@@ -487,8 +525,9 @@
 			 * @param customClass [string] <''> "Class applied to instance"
 			 * @param duration [int] <0> "Scroll animation length"
 			 * @param handleSize [int] <0> "Handle size; 0 to auto size"
-			 * @param horizontal [boolean] <false> "Flag to scroll horizontally"
+			 * @param horizontal [boolean] <false> "Scroll horizontally"
 			 * @param mouseWheel [boolean] <true> "Flag to prevent scrolling of parent element"
+			 * @param theme [string] <"fs-light"> "Theme class name"
 			 * @param trackMargin [int] <0> "Margin between track and handle edge”
 			 */
 
@@ -498,6 +537,7 @@
 				handleSize     : 0,
 				horizontal     : false,
 				mouseWheel     : true,
+				theme          : "fs-light",
 				trackMargin    : 0
 			},
 
@@ -534,4 +574,6 @@
 		$Window        = Formstone.$window,
 		$Instances     = [];
 
-})(jQuery, Formstone);
+})
+
+);

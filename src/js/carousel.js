@@ -1,4 +1,17 @@
-;(function ($, Formstone, undefined) {
+/* global define */
+
+(function(factory) {
+	if (typeof define === "function" && define.amd) {
+		define([
+			"jquery",
+			"./core",
+			"./mediaquery",
+			"./touch"
+		], factory);
+	} else {
+		factory(jQuery, Formstone);
+	}
+}(function($, Formstone) {
 
 	"use strict";
 
@@ -30,25 +43,30 @@
 	 */
 
 	function construct(data) {
-		var i,
-			carouselClasses = [
-				RawClasses.base,
-				data.customClass,
-				(data.rtl ? RawClasses.rtl : RawClasses.ltr)
-			];
+		var i;
+
+		data.didPan = false;
+
+		data.carouselClasses = [
+			RawClasses.base,
+			data.theme,
+			data.customClass,
+			(data.rtl ? RawClasses.rtl : RawClasses.ltr)
+		];
 
 		data.maxWidth = (data.maxWidth === Infinity ? "100000px" : data.maxWidth);
 		data.mq       = "(min-width:" + data.minWidth + ") and (max-width:" + data.maxWidth + ")";
 
-		data.customControls = ($.type(data.controls) === "object" && data.controls.previous && data.controls.next);
+		data.customControls   = ($.type(data.controls) === "object" && data.controls.previous && data.controls.next);
+		data.customPagination = ($.type(data.pagination) === "string");
 
 		data.id = this.attr("id");
 
 		if (data.id) {
-			data.ariaID = data.id;
+			data.ariaId = data.id;
 		} else {
-			data.ariaID = data.rawGuid;
-			this.attr("id", data.ariaID);
+			data.ariaId = data.rawGuid;
+			this.attr("id", data.ariaId);
 		}
 
 		// Legacy browser support
@@ -63,31 +81,31 @@
 			controlNextClasses = [RawClasses.control, RawClasses.control_next].join(" ");
 
 		if (data.controls && !data.customControls) {
-			controlsHtml += '<div class="' + RawClasses.controls + '" aria-label="carousel controls" aria-controls="' + data.ariaID + '">';
+			controlsHtml += '<div class="' + RawClasses.controls + '" aria-label="carousel controls" aria-controls="' + data.ariaId + '">';
 			controlsHtml += '<button type="button" class="' + controlPrevClasses + '" aria-label="' + data.labels.previous + '">' + data.labels.previous + '</button>';
 			controlsHtml += '<button type="button" class="' + controlNextClasses + '" aria-label="' + data.labels.next + '">' + data.labels.next + '</button>';
 			controlsHtml += '</div>';
 		}
 
-		if (data.pagination) {
-			paginationHtml += '<div class="' + RawClasses.pagination + '" aria-label="carousel pagination" aria-controls="' + data.ariaID + '" role="navigation">';
+		if (data.pagination && !data.customPagination) {
+			paginationHtml += '<div class="' + RawClasses.pagination + '" aria-label="carousel pagination" aria-controls="' + data.ariaId + '" role="navigation">';
 			paginationHtml += '</div>';
 		}
 
 		if (data.autoHeight) {
-			carouselClasses.push(RawClasses.auto_height);
+			data.carouselClasses.push(RawClasses.auto_height);
 		}
 
 		if (data.contained) {
-			carouselClasses.push(RawClasses.contained);
+			data.carouselClasses.push(RawClasses.contained);
 		}
 
 		if (data.single) {
-			carouselClasses.push(RawClasses.single);
+			data.carouselClasses.push(RawClasses.single);
 		}
 
 		// Modify dom
-		this.addClass( carouselClasses.join(" ") )
+		this.addClass( data.carouselClasses.join(" ") )
 			.wrapInner('<div class="' + RawClasses.wrapper + '" aria-live="polite"><div class="' + RawClasses.container + '"><div class="' + RawClasses.canister + '"></div></div></div>')
 			.append(controlsHtml)
 			.wrapInner('<div class="' + RawClasses.viewport + '"></div>')
@@ -97,7 +115,6 @@
 		data.$container          = this.find(Classes.container).eq(0);
 		data.$canister           = this.find(Classes.canister).eq(0);
 		data.$pagination         = this.find(Classes.pagination).eq(0);
-		data.$paginationItems    = data.$pagination.find(Classes.page);
 
 		data.$controlPrevious = data.$controlNext = $('');
 
@@ -113,11 +130,34 @@
 
 		data.$controlItems = data.$controlPrevious.add(data.$controlNext);
 
+		if (data.customPagination) {
+			data.$pagination = $(data.pagination).addClass( [RawClasses.pagination] );
+		}
+
+		data.$paginationItems = data.$pagination.find(Classes.page);
+
 		data.index           = 0;
 		data.enabled         = false;
 		data.leftPosition    = 0;
 		data.autoTimer       = null;
 		data.resizeTimer     = null;
+
+		// live query for linked to avoid missing new elements
+		var linked      = this.data(Namespace + "-linked");
+		data.linked     = linked ? '[data-' + Namespace + '-linked="' + linked + '"]' : false;
+
+		// force paged if linked, keeps counts accurate
+		if (data.linked) {
+			data.paged = true;
+		}
+
+		// live query for controlled to avoid missing new elements
+		var subordinate      = this.data(Namespace + "-controller-for") || '';
+		data.$subordinate    = $(subordinate);
+
+		if (data.$subordinate.length) {
+			data.controller = true;
+		}
 
 		// Responsive count handling
 		if ($.type(data.show) === "object") {
@@ -159,6 +199,9 @@
 		});
 
 		cacheInstances();
+
+		data.carouselClasses.push(RawClasses.enabled);
+		data.carouselClasses.push(RawClasses.animated);
 	}
 
 	/**
@@ -176,8 +219,8 @@
 
 		$.fsMediaquery("unbind", data.rawGuid);
 
-		if (data.id !== data.ariaID) {
-			this.attr("id", "");
+		if (data.id !== data.ariaId) {
+			this.removeAttr("id");
 		}
 
 		data.$controlItems.removeClass( [Classes.control, RawClasses.control_previous, Classes.control_next, Classes.visible].join(" ") )
@@ -192,17 +235,23 @@
 				.unwrap()
 				.unwrap();
 
-		if (data.pagination) {
-			data.$pagination.remove();
-		}
 		if (data.controls && !data.customControls) {
 			data.$controls.remove();
 		}
+
 		if (data.customControls) {
 			data.$controls.removeClass( [RawClasses.controls, RawClasses.controls_custom, RawClasses.visible ].join(" ") );
 		}
 
-		this.removeClass( [RawClasses.base, RawClasses.ltr, RawClasses.rtl, RawClasses.enabled, RawClasses.animated, RawClasses.contained, RawClasses.single, RawClasses.auto_height, RawClasses.customClass].join(" ") );
+		if (data.pagination && !data.customPagination) {
+			data.$pagination.remove();
+		}
+
+		if (data.customPagination) {
+			data.$pagination.html("").removeClass( [ RawClasses.pagination, RawClasses.visible ].join(" ") );
+		}
+
+		this.removeClass(data.carouselClasses.join(" "));
 
 		cacheInstances();
 	}
@@ -220,6 +269,8 @@
 
 			data.enabled = false;
 
+			data.$subordinate.off(Events.update);
+
 			this.removeClass( [RawClasses.enabled, RawClasses.animated].join(" ") )
 				.off(Events.namespace);
 
@@ -235,7 +286,7 @@
 
 			data.$images.off(Events.namespace);
 			data.$controlItems.off(Events.namespace);
-			data.$pagination.html("");
+			data.$pagination.html("").off(Events.namespace);
 
 			hideControls(data);
 
@@ -262,11 +313,15 @@
 		if (!data.enabled) {
 			data.enabled = true;
 
-			this.addClass(RawClasses.enabled)
-				// .on(Events.click, Classes.control, data, onAdvance)
-				.on(Events.click, Classes.page, data, onSelect);
+			this.addClass(RawClasses.enabled);
 
 			data.$controlItems.on(Events.click, data, onAdvance);
+			data.$pagination.on(Events.click, Classes.page, data, onSelect);
+
+			data.$items.on(Events.click, data, onItemClick);
+			data.$subordinate.on(Events.update, data, onSubordinateUpdate);
+
+			onSubordinateUpdate({ data: data }, 0);
 
 			data.$canister.fsTouch({
 				axis: "x",
@@ -276,6 +331,7 @@
 			  .on(Events.pan, data, onPan)
 			  .on(Events.panEnd, data, onPanEnd)
 			  .on(Events.swipe, data, onSwipe)
+			  .on(Events.focusIn, data, onItemFocus)
 			  .css(TransitionProperty, "");
 
 			cacheValues(data);
@@ -335,9 +391,13 @@
 			data.visible   = calculateVisible(data);
 			data.perPage   = data.paged ? 1 : data.visible;
 
-			data.itemMargin = parseInt(data.$items.eq(0).css("marginRight")) + parseInt(data.$items.eq(0).css("marginLeft"));
+			data.itemMarginLeft  = parseInt(data.$items.eq(0).css("marginLeft"));
+			data.itemMarginRight = parseInt(data.$items.eq(0).css("marginRight"));
+
+			data.itemMargin = data.itemMarginLeft + data.itemMarginRight;
+
 			if (isNaN(data.itemMargin)) {
-				data.itemMargin = 0; // Catch bad values
+				data.itemMargin = 0;
 			}
 
 			data.itemWidth  = (data.containerWidth - (data.itemMargin * (data.visible - 1))) / data.visible;
@@ -378,7 +438,7 @@
 
 				// if (data.autoHeight) {
 					for (k = 0; k < $items.length; k++) {
-						w = $items.eq(k).outerWidth();
+						w = $items.eq(k).outerWidth(true);
 						h = $items.eq(k).outerHeight();
 
 						width += w;
@@ -392,7 +452,7 @@
 				// }
 
 				data.pages.push({
-					left      : data.rtl ? left - (data.canisterWidth - width - (data.itemMargin * 2)) : left,
+					left      : data.rtl ? left - (data.canisterWidth - width) : left,
 					height    : height,
 					width     : width,
 					$items    : $items
@@ -439,7 +499,7 @@
 			} else {
 				showControls(data);
 			}
-			data.$paginationItems = data.$el.find(Classes.page);
+			data.$paginationItems = data.$pagination.find(Classes.page);
 
 			positionCanister(data, data.index, false);
 
@@ -515,8 +575,16 @@
 
 	/**
 	 * @method
-	 * @name jump
+	 * @name jumpPage
 	 * @description Jump instance of plugin to specific page
+	 * @example $(".target").carousel("jumpPage", 1);
+	 * @param index [int] "New index"
+	 * @param silent [boolean] "Flag to prevent triggering update event"
+	 */
+	/**
+	 * @method
+	 * @name jump
+	 * @description Jump instance of plugin to specific page; Alias of `jumpPage`
 	 * @example $(".target").carousel("jump", 1);
 	 * @param index [int] "New index"
 	 * @param silent [boolean] "Flag to prevent triggering update event"
@@ -524,36 +592,47 @@
 
 	/**
 	 * @method private
-	 * @name jumpToItem
+	 * @name jumpPage
 	 * @description Jump instance of plugin to specific page
 	 * @param data [object] "Instance data"
 	 * @param index [int] "New index"
 	 * @param silent [boolean] ""
+	 * @param animated [boolean] ""
 	 */
 
-	function jumpToItem(data, index, silent) {
+	function jumpPage(data, index, silent, fromLinked, animated) {
 		if (data.enabled) {
 			Functions.clearTimer(data.autoTimer);
 
-			positionCanister(data, index - 1, true, silent);
+			if (typeof animated === "undefined") {
+				animated = true;
+			}
+
+			positionCanister(data, index - 1, animated, silent, fromLinked);
 		}
 	}
 
 	/**
 	 * @method
+	 * @name previousPage
+	 * @description Move to the previous page
+	 * @example $(".target").carousel("previousPage");
+	 */
+	/**
+	 * @method
 	 * @name previous
-	 * @description Move to the previous item
+	 * @description Move to the previous page; Alias of `previousPage`
 	 * @example $(".target").carousel("previous");
 	 */
 
 	/**
 	 * @method private
-	 * @name previousItem
-	 * @description Move to previous item
+	 * @name previousPage
+	 * @description Move to previous page
 	 * @param data [object] "Instance data"
 	 */
 
-	function previousItem(data) {
+	function previousPage(data) {
 		var index = data.index - 1;
 
 		if (data.infinite && index < 0) {
@@ -565,19 +644,25 @@
 
 	/**
 	 * @method
+	 * @name nextPage
+	 * @description Move to next page
+	 * @example $(".target").carousel("nextPage");
+	 */
+	/**
+	 * @method
 	 * @name next
-	 * @description Move to next item
+	 * @description Move to next page; Alias of `nextPage`
+	 * @example $(".target").carousel("next");
 	 */
 
 	/**
 	 * @method private
-	 * @name nextItem
-	 * @description Move to next item
-	 * @example $(".target").carousel("next");
+	 * @name nextPage
+	 * @description Move to next page
 	 * @param data [object] "Instance data"
 	 */
 
-	function nextItem(data) {
+	function nextPage(data) {
 		var index = data.index + 1;
 
 		if (data.infinite && index >= data.pageCount) {
@@ -585,6 +670,45 @@
 		}
 
 		positionCanister(data, index);
+	}
+
+
+	/**
+	 * @method
+	 * @name jumpItem
+	 * @description Jump instance of plugin to specific item
+	 * @example $(".target").carousel("jumpItem", 1);
+	 * @param index [int] "New item index"
+	 * @param silent [boolean] "Flag to prevent triggering update event"
+	 */
+
+	/**
+	 * @method private
+	 * @name jumpItem
+	 * @description Jump instance of plugin to specific page
+	 * @param data [object] "Instance data"
+	 * @param index [int] "New index"
+	 * @param silent [boolean] ""
+	 * @param animated [boolean] ""
+	 */
+
+	function jumpItem(data, index, silent, fromLinked, animated) {
+		if (data.enabled) {
+			Functions.clearTimer(data.autoTimer);
+
+			var $active = data.$items.eq(index - 1);
+
+			if (typeof animated === "undefined") {
+				animated = true;
+			}
+
+			for (var i = 0; i < data.pageCount; i++) {
+				if (data.pages[i].$items.is($active)) {
+					positionCanister(data, i, animated, silent, fromLinked);
+					break;
+				}
+			}
+		}
 	}
 
 	/**
@@ -661,7 +785,7 @@
 	 * @param index [int] "Item index"
 	 */
 
-	function positionCanister(data, index, animate, silent) {
+	function positionCanister(data, index, animate, silent, fromLinked) {
 		if (index < 0) {
 			index = (data.infinite) ? data.pageCount-1 : 0;
 		}
@@ -700,7 +824,6 @@
 		// Update classes
 		data.$items.removeClass( [RawClasses.visible, RawClasses.item_previous, RawClasses.item_next].join(" ") );
 
-
 		for (var i = 0, count = data.pages.length; i < count; i++) {
 			if (i === index) {
 				data.pages[i].$items.addClass(RawClasses.visible).attr("aria-hidden", "false");
@@ -708,7 +831,6 @@
 				data.pages[i].$items.not( data.pages[index].$items ).addClass( (i < index) ? RawClasses.item_previous : RawClasses.item_next ).attr("aria-hidden", "true");
 			}
 		}
-
 
 		// Auto Height
 		if (data.autoHeight) {
@@ -722,6 +844,11 @@
 		}
 
 		data.index = index;
+
+		// Linked
+		if (data.linked && fromLinked !== true) {
+			$(data.linked).not(data.$el)[NamespaceClean]("jumpPage", data.index + 1, true, true);
+		}
 
 		updateControls(data);
 	}
@@ -821,7 +948,7 @@
 	 * @param e [object] "Event data"
 	 */
 
-	function onPanStart(e) {
+	function onPanStart(e, fromLinked) {
 		var data = e.data;
 
 		Functions.clearTimer(data.autoTimer);
@@ -837,6 +964,17 @@
 			data.$canister.css(TransitionProperty, "none");
 
 			onPan(e);
+
+			// Linked
+			if (data.linked && fromLinked !== true) {
+				var percent = e.deltaX / data.pageWidth;
+
+				if (data.rtl) {
+					percent *= -1;
+				}
+
+				$(data.linked).not(data.$el)[NamespaceClean]("panStart", percent);
+			}
 		}
 
 		data.isTouching = true;
@@ -849,7 +987,7 @@
 	 * @param e [object] "Event data"
 	 */
 
-	function onPan(e) {
+	function onPan(e, fromLinked) {
 		var data = e.data;
 
 		if (!data.single) {
@@ -862,6 +1000,17 @@
 			} else {
 				data.$canister.css(TransformProperty, "translateX(" + data.touchLeft + "px)");
 			}
+
+			// Linked
+			if (data.linked && fromLinked !== true) {
+				var percent = e.deltaX / data.pageWidth;
+
+				if (data.rtl) {
+					percent *= -1;
+				}
+
+				$(data.linked).not(data.$el)[NamespaceClean]("pan", percent);
+			}
 		}
 	}
 
@@ -872,11 +1021,13 @@
 	 * @param e [object] "Event data"
 	 */
 
-	function onPanEnd(e) {
+	function onPanEnd(e, fromLinked) {
 		var data       = e.data,
 			delta      = Math.abs(e.deltaX),
 			increment  = getIncrement(data, e),
 			index      = false;
+
+		data.didPan = false;
 
 		if (!data.single) {
 			var i, count,
@@ -909,7 +1060,92 @@
 			index = (delta < 50) ? data.index : data.index + increment;
 		}
 
+		if (index !== data.index) {
+			data.didPan = true;
+		}
+
+		// Linked
+		if (data.linked && fromLinked !== true) {
+			$(data.linked).not(data.$el)[NamespaceClean]("panEnd", index);
+		}
+
 		endTouch(data, index);
+	}
+
+	/**
+	 * @method private
+	 * @name linkedPanStart
+	 * @description Handles linked pan start
+	 * @param data [object] "Instance data"
+	 * @param percent [float] "Percentage moved"
+	 */
+
+	function linkedPanStart(data, percent) {
+		Functions.clearTimer(data.autoTimer);
+
+		if (!data.single) {
+			if (data.rtl) {
+				percent *= -1;
+			}
+
+			if (data.useMargin) {
+				data.leftPosition = parseInt(data.$canister.css("marginLeft"));
+			} else {
+				var matrix = data.$canister.css(TransformProperty).split(",");
+				data.leftPosition = parseInt(matrix[4]); // ?
+			}
+
+			data.$canister.css(TransitionProperty, "none");
+
+			var e = {
+				data: data,
+				deltaX: (data.pageWidth * percent)
+			};
+
+			onPan(e, true);
+		}
+
+		data.isTouching = true;
+	}
+
+	/**
+	 * @method private
+	 * @name linkedPan
+	 * @description Handles linked pan
+	 * @param data [object] "Instance data"
+	 * @param percent [float] "Percentage moved"
+	 */
+
+	function linkedPan(data, percent) {
+		if (!data.single) {
+			if (data.rtl) {
+				percent *= -1;
+			}
+
+			var delta = (data.pageWidth * percent);
+
+			data.touchLeft = checkPosition(data, data.leftPosition + delta);
+
+			if (data.useMargin) {
+				data.$canister.css({
+					marginLeft: data.touchLeft
+				});
+			} else {
+				data.$canister.css(TransformProperty, "translateX(" + data.touchLeft + "px)");
+			}
+		}
+	}
+
+	/**
+	 * @method private
+	 * @name linkedPanEnd
+	 * @description Handles linked pan end
+	 * @param data [object] "Instance data"
+	 * @param index [int] "New Index"
+	 */
+
+	function linkedPanEnd(data, index) {
+		endTouch(data, index, true);
 	}
 
 	/**
@@ -919,12 +1155,34 @@
 	 * @param e [object] "Event data"
 	 */
 
-	function onSwipe(e) {
+	function onSwipe(e, fromLinked) {
 		var data      = e.data,
 			increment = getIncrement(data, e),
 			index     = data.index + increment;
 
+		// Linked
+		if (data.linked && fromLinked !== true) {
+			$(data.linked).not(data.$el)[NamespaceClean]("swipe", e.directionX);
+		}
+
 		endTouch(data, index);
+	}
+
+	/**
+	 * @method private
+	 * @name linkedSwipe
+	 * @description Handles swipe event
+	 * @param data [object] "Instance data"
+	 * @param direction [string] "Swipe direction"
+	 */
+
+	function linkedSwipe(data, direction) {
+		var e = {
+			data:      data,
+			directionX: direction
+		};
+
+		onSwipe(e, true);
 	}
 
 	/**
@@ -941,6 +1199,89 @@
 		positionCanister(data, index);
 
 		data.isTouching = false;
+	}
+
+	/**
+	 * @method private
+	 * @name onItemClick
+	 * @description Handles click to item
+	 * @param e [object] "Event data"
+	 */
+
+	function onItemClick(e) {
+		var data    = e.data,
+			$target = $(e.currentTarget);
+
+		if (!data.didPan) {
+			$target.trigger(Events.itemClick);
+
+			if (data.controller) {
+				var index = data.$items.index($target);
+
+				onSubordinateUpdate(e, index);
+
+				data.$subordinate[NamespaceClean]("jumpPage", index + 1, true);
+			}
+		}
+	}
+
+	/**
+	 * @method private
+	 * @name onItemFocus
+	 * @description Handles focus to item/element in item
+	 * @param e [object] "Event data"
+	 */
+
+	function onItemFocus(e) {
+		var data = e.data;
+
+		if (data.enabled && !data.isTouching) {
+			Functions.clearTimer(data.autoTimer);
+
+			data.$container.scrollLeft(0);
+
+			var $target = $(e.target),
+				$active;
+
+			if ( $target.hasClass(RawClasses.item) ) {
+				$active = $target;
+			} else if ($target.parents(Classes.item).length) {
+				$active = $target.parents(Classes.item).eq(0);
+			}
+
+			for (var i = 0; i < data.pageCount; i++) {
+				if (data.pages[i].$items.is($active)) {
+					positionCanister(data, i);
+					break;
+				}
+			}
+		}
+	}
+
+	/**
+	 * @method private
+	 * @name onSubordinateUpdate
+	 * @description Handles update from subordinate
+	 * @param e [object] "Event data"
+	 * @param index [int] "Index"
+	 */
+
+	function onSubordinateUpdate(e, index) {
+		var data = e.data;
+
+		if (data.controller) {
+			var $active = data.$items.eq(index);
+
+			data.$items.removeClass(RawClasses.active);
+			$active.addClass(RawClasses.active);
+
+			for (var i = 0; i < data.pageCount; i++) {
+				if (data.pages[i].$items.is($active)) {
+					positionCanister(data, i, true, true);
+					break;
+				}
+			}
+		}
 	}
 
 	/**
@@ -1009,7 +1350,7 @@
 			 * @param autoHeight [boolean] <false> "Flag to adjust carousel height to visible item(s)"
 			 * @param autoTime [int] <8000> "Auto advance time"
 			 * @param contained [boolean] <true> "Flag for 'overflow: visible'"
-			 * @param controls [boolean or object] <true> "Flag to draw controls OR object containing container, next and previous control selectors"
+			 * @param controls [boolean or object] <true> "Flag to draw controls OR object containing container, next and previous control selectors (Must be fully qualified selectors)"
 			 * @param customClass [string] <''> "Class applied to instance"
 			 * @param fill [boolean] <false> "Flag to fill viewport if item count is less then show count"
 			 * @param infinite [boolean] <false> "Flag for looping items"
@@ -1020,9 +1361,11 @@
 			 * @param maxWidth [string] <'Infinity'> "Width at which to auto-disable plugin"
 			 * @param minWidth [string] <'0'> "Width at which to auto-disable plugin"
 			 * @param paged [boolean] <false> "Flag for paged items"
-			 * @param pagination [boolean] <true> "Flag to draw pagination"
-			 * @param show [int / object] <1> "Items visible per page; Object for responsive counts"
+			 * @param pagination [boolean or string] <true> "Flag to draw pagination OR string containing pagination target selector (Must be fully qualified selector)"
 			 * @param rtl [boolean] <false> "Right to Left display"
+			 * @param show [int / object] <1> "Items visible per page; Object for responsive counts"
+			 * @param single [boolean] <false> "Flag to display single item at a time"
+			 * @param theme [string] <"fs-light"> "Theme class name"
 			 * @param useMargin [boolean] <false> "Use margins instead of css transitions (legacy browser support)"
 			 */
 
@@ -1045,9 +1388,10 @@
 				minWidth       : '0px',
 				paged          : false,
 				pagination     : true,
+				rtl            : false,
 				show           : 1,
 				single         : false,
-				rtl            : false,
+				theme          : "fs-light",
 				useMargin      : false
 			},
 
@@ -1085,11 +1429,13 @@
 
 			/**
 			 * @events
+			 * @event itemClick.carousel "Item clicked; Triggered on carousel item"
 			 * @event update.carousel "Carousel position updated"
 			 */
 
 			events: {
-				update      : "update"
+				itemClick    : "itemClick",
+				update       : "update"
 			},
 
 			methods: {
@@ -1099,25 +1445,43 @@
 
 				disable       : disable,
 				enable        : enable,
-				jump          : jumpToItem,
-				previous      : previousItem,
-				next          : nextItem,
+
+				// Backwards compat?
+				jump          : jumpPage,
+				previous      : previousPage,
+				next          : nextPage,
+				// Pages
+				jumpPage      : jumpPage,
+				previousPage  : previousPage,
+				nextPage      : nextPage,
+				// Items
+				jumpItem      : jumpItem,
+
 				reset         : resetInstance,
 				resize        : resizeInstance,
 				update        : updateItems,
+
+				panStart      : linkedPanStart,
+				pan           : linkedPan,
+				panEnd        : linkedPanEnd,
+				swipe         : linkedSwipe
 			}
 		}),
 
 		// Localize References
 
-		Classes        = Plugin.classes,
-		RawClasses     = Classes.raw,
-		Events         = Plugin.events,
-		Functions      = Plugin.functions,
+		Namespace         = Plugin.namespace,
+		NamespaceClean    = Plugin.namespaceClean,
+		Classes           = Plugin.classes,
+		RawClasses        = Classes.raw,
+		Events            = Plugin.events,
+		Functions         = Plugin.functions,
 
-		$Instances     = [],
+		$Instances        = [],
 
 		TransformProperty     = Formstone.transform,
 		TransitionProperty    = Formstone.transition;
 
-})(jQuery, Formstone);
+})
+
+);

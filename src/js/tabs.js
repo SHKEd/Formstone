@@ -1,4 +1,17 @@
-;(function ($, Formstone, undefined) {
+/* global define */
+
+(function(factory) {
+	if (typeof define === "function" && define.amd) {
+		define([
+			"jquery",
+			"./core",
+			"./mediaquery",
+			"./swap"
+		], factory);
+	} else {
+		factory(jQuery, Formstone);
+	}
+}(function($, Formstone) {
 
 	"use strict";
 
@@ -15,16 +28,40 @@
 		data.content      = this.attr("href");
 		data.group        = this.data(Namespace + "-group");
 
-		data.tabClasses          = [RawClasses.tab, data.rawGuid].join(" ");
-		data.mobileTabClasses    = [RawClasses.tab, RawClasses.tab_mobile, data.rawGuid].join(" ");
-		data.contentClasses      = [RawClasses.content, data.rawGuid].join(" ");
+		data.elementClasses      = [RawClasses.tab, data.rawGuid, data.theme, data.customClass];
+		data.mobileTabClasses    = [RawClasses.tab, RawClasses.tab_mobile, data.rawGuid, data.theme, data.customClass];
+		data.contentClasses      = [RawClasses.content, data.rawGuid, data.theme, data.customClass];
 
 		// DOM
 
-		data.$mobileTab    = $('<button type="button" class="' + data.mobileTabClasses + '">' + this.text() + '</button>');
-		data.$content      = $(data.content).addClass(data.contentClasses);
+		data.$mobileTab    = $('<button type="button" class="' + data.mobileTabClasses.join(" ") + '" aria-hidden="true">' + this.text() + '</button>');
+		data.$content      = $(data.content).addClass( data.contentClasses.join(" ") );
 
-		data.$content.before(data.$mobileTab);
+		data.$content.before(data.$mobileTab)
+					 .attr("role", "tabpanel");
+
+		this.attr("role", "tab");
+
+		// Aria
+
+		data.id = this.attr("id");
+
+		if (data.id) {
+			data.ariaId = data.id;
+		} else {
+			data.ariaId = data.rawGuid;
+			this.attr("id", data.ariaId);
+		}
+
+		data.contentId   = data.$content.attr("id");
+		data.contentGuid = data.rawGuid + "_content";
+
+		if (data.contentId) {
+			data.ariacontentId = data.contentId;
+		} else {
+			data.ariaContentId = data.contentGuid;
+			data.$content.attr("id", data.ariaContentId);
+		}
 
 		// Check for hash
 
@@ -33,8 +70,8 @@
 			hashGroup  = false;
 
 		if (hash.length) {
-			hashActive = (this.filter("[href*=" + hash + "]").length > 0);
-			hashGroup  = data.group && ($('[data-' + Namespace + '-group="' + data.group + '"]').filter("[href*=" + hash + "]").length > 0);
+		    hashActive = (this.filter("[href*='" + hash + "']").length > 0);
+		    hashGroup  = data.group && ($('[data-' + Namespace + '-group="' + data.group + '"]').filter("[href*='" + hash + "']").length > 0);
 		}
 
 		if (hashActive) {
@@ -51,7 +88,7 @@
 
 		this.attr("data-swap-target", data.content)
 			.attr("data-swap-group", data.group)
-			.addClass(data.tabClasses)
+			.addClass(data.elementClasses.join(" "))
 			.on("activate.swap" + data.dotGuid, data, onActivate)
 			.on("deactivate.swap" + data.dotGuid, data, onDeactivate)
 			.on("enable.swap" + data.dotGuid, data, onEnable)
@@ -107,17 +144,34 @@
 		data.$mobileTab.off(Events.namespace)
 					   .remove();
 
-		data.$content.removeClass(RawClasses.content);
+		data.elementClasses.push(RawClasses.mobile);
+		data.contentClasses.push(RawClasses.mobile);
 
-		this.removeAttr("data-swap-active")
+		data.$content.removeAttr("aria-labelledby")
+					 .removeAttr("aria-hidden")
+					 .removeAttr("role")
+					 .removeClass( data.contentClasses.join(" ") );
+
+		if (data.$content.attr("id") === data.contentGuid) {
+			data.$content.removeAttr("id");
+		}
+
+		this.removeAttr("aria-controls")
+			.removeAttr("aria-selected")
+			.removeAttr("data-swap-active")
 			.removeData("data-swap-active")
 			.removeAttr("data-swap-target")
 			.removeData("data-swap-target")
 			.removeAttr("data-swap-group")
 			.removeData("data-swap-group")
-			.removeClass(RawClasses.tab)
+			.removeAttr("role")
+			.removeClass( data.elementClasses.join(" ") )
 			.off(Events.namespace)
 			.fsSwap("destroy");
+
+		if (this.attr("id") === data.rawGuid) {
+			this.removeAttr("id");
+		}
 	}
 
 	/**
@@ -165,10 +219,11 @@
 			var data = e.data,
 				index = 0;
 
-			data.$el.trigger(Events.update, [ index ]);
-
+			data.$el.attr("aria-selected", true)
+					.trigger(Events.update, [ index ]);
 			data.$mobileTab.addClass(RawClasses.active);
-			data.$content.addClass(RawClasses.active);
+			data.$content.attr("aria-hidden", false)
+						 .addClass(RawClasses.active);
 		}
 	}
 
@@ -183,8 +238,10 @@
 		if (!e.originalEvent) { // thanks IE :/
 			var data = e.data;
 
+			data.$el.attr("aria-selected", false);
 			data.$mobileTab.removeClass(RawClasses.active);
-			data.$content.removeClass(RawClasses.active);
+			data.$content.attr("aria-hidden", true)
+						 .removeClass(RawClasses.active);
 		}
 	}
 
@@ -198,8 +255,10 @@
 	function onEnable(e) {
 		var data = e.data;
 
+		data.$el.attr("aria-controls", data.ariaContentId);
 		data.$mobileTab.addClass(RawClasses.enabled);
-		data.$content.addClass(RawClasses.enabled);
+		data.$content.attr("aria-labelledby", data.ariaId)
+					 .addClass(RawClasses.enabled);
 	}
 
 	/**
@@ -212,8 +271,12 @@
 	function onDisable(e) {
 		var data = e.data;
 
+		data.$el.removeAttr("aria-controls")
+				.removeAttr("aria-selected");
 		data.$mobileTab.removeClass(RawClasses.enabled);
-		data.$content.removeClass(RawClasses.enabled);
+		data.$content.removeAttr("aria-labelledby")
+					 .removeAttr("aria-hidden")
+					 .removeClass(RawClasses.enabled);
 	}
 
 	/**
@@ -237,6 +300,7 @@
 	function mobileEnable(data) {
 		data.$el.addClass(RawClasses.mobile);
 		data.$mobileTab.addClass(RawClasses.mobile);
+		data.$content.addClass(RawClasses.mobile);
 	}
 
 	/**
@@ -249,6 +313,7 @@
 	function mobileDisable(data) {
 		data.$el.removeClass(RawClasses.mobile);
 		data.$mobileTab.removeClass(RawClasses.mobile);
+		data.$content.removeClass(RawClasses.mobile);
 	}
 
 	/**
@@ -272,14 +337,14 @@
 			 * @param customClass [string] <''> "Class applied to instance"
 			 * @param maxWidth [string] <Infinity> "Width at which to auto-disable plugin"
 			 * @param mobileMaxWidth [string] <'740px'> "Width at which to auto-disable mobile styles"
-			 * @param vertical [boolean] <false> "Flag to draw vertical tab set"
+			 * @param theme [string] <"fs-light"> "Theme class name"
 			 */
 
 			defaults: {
 				customClass       : "",
 				maxWidth          : Infinity,
 				mobileMaxWidth    : "740px",
-				vertical          : false
+				theme             : "fs-light"
 			},
 
 			classes: [
@@ -321,4 +386,6 @@
 		Events        = Plugin.events,
 		Functions     = Plugin.functions;
 
-})(jQuery, Formstone);
+})
+
+);

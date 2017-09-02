@@ -4,15 +4,24 @@
  * @description Formstone Library core. Required for all plugins.
  */
 
-var Formstone = window.Formstone = (function ($, window, document, undefined) {
+/* global define */
+/* global ga */
 
-	/* global ga */
+(function(factory) {
+	if (typeof define === "function" && define.amd) {
+		define([ "jquery" ], factory);
+	} else {
+		factory(jQuery);
+	}
+}(function($) {
 
 	"use strict";
 
 	// Namespace
 
-	var Core = function() {
+	var Win  = typeof window !== "undefined" ? window : this,
+		Doc  = Win.document,
+		Core = function() {
 			this.Version = '@version';
 			this.Plugins = {};
 
@@ -25,10 +34,10 @@ var Formstone = window.Formstone = (function ($, window, document, undefined) {
 
 			// Globals
 
-			this.window               = window;
-			this.$window              = $(window);
-			this.document             = document;
-			this.$document            = $(document);
+			this.window               = Win;
+			this.$window              = $(Win);
+			this.document             = Doc;
+			this.$document            = $(Doc);
 			this.$body                = null;
 
 			this.windowWidth          = 0;
@@ -76,6 +85,73 @@ var Formstone = window.Formstone = (function ($, window, document, undefined) {
 					}
 				} catch(error) {
 					//
+				}
+			},
+
+			/**
+			 * @method private
+			 * @name killGesture
+			 * @description Stops gesture event action.
+			 * @param e [object] "Event data"
+			 */
+
+			killGesture: function(e) {
+				try {
+					e.preventDefault();
+				}  catch(error) {
+					//
+				}
+			},
+
+			/**
+			 * @method private
+			 * @name lockViewport
+			 * @description Unlocks the viewport, preventing getsures.
+			 */
+
+			lockViewport: function(plugin_namespace) {
+				ViewportLocks[plugin_namespace] = true;
+
+				if (!$.isEmptyObject(ViewportLocks) && !ViewportLocked) {
+					if ($ViewportMeta.length) {
+						$ViewportMeta.attr("content", ViewportMetaLocked);
+					} else {
+						$ViewportMeta = $("head").append('<meta name="viewport" content="' + ViewportMetaLocked + '">');
+					}
+
+					Formstone.$body.on(Events.gestureChange, Functions.killGesture)
+								   .on(Events.gestureStart, Functions.killGesture)
+								   .on(Events.gestureEnd, Functions.killGesture);
+
+					ViewportLocked = true;
+				}
+			},
+
+			/**
+			 * @method private
+			 * @name unlockViewport
+			 * @description Unlocks the viewport, allowing getsures.
+			 */
+
+			unlockViewport: function(plugin_namespace) {
+				if ($.type( ViewportLocks[plugin_namespace] ) !== 'undefined') {
+					delete ViewportLocks[plugin_namespace];
+				}
+
+				if ($.isEmptyObject(ViewportLocks) && ViewportLocked) {
+					if ($ViewportMeta.length) {
+						if (ViewportMetaOriginal) {
+							$ViewportMeta.attr("content", ViewportMetaOriginal);
+						} else {
+							$ViewportMeta.remove();
+						}
+					}
+
+					Formstone.$body.off(Events.gestureChange)
+								   .off(Events.gestureStart)
+								   .off(Events.gestureEnd);
+
+					ViewportLocked = false;
 				}
 			},
 
@@ -210,6 +286,9 @@ var Formstone = window.Formstone = (function ($, window, document, undefined) {
 			focus                : "focus.{ns}",
 			focusIn              : "focusin.{ns}",
 			focusOut             : "focusout.{ns}",
+			gestureChange        : "gesturechange.{ns}",
+			gestureStart         : "gesturestart.{ns}",
+			gestureEnd           : "gestureend.{ns}",
 			input                : "input.{ns}",
 			keyDown              : "keydown.{ns}",
 			keyPress             : "keypress.{ns}",
@@ -237,7 +316,16 @@ var Formstone = window.Formstone = (function ($, window, document, undefined) {
 			touchLeave           : "touchleave.{ns}",
 			touchMove            : "touchmove.{ns}",
 			touchStart           : "touchstart.{ns}"
-		};
+		},
+
+		ResizeTimer    = null,
+		Debounce       = 20,
+
+		$ViewportMeta,
+		ViewportMetaOriginal,
+		ViewportMetaLocked,
+		ViewportLocks     = [],
+		ViewportLocked    = false;
 
 	/**
 	 * @method
@@ -647,9 +735,9 @@ var Formstone = window.Formstone = (function ($, window, document, undefined) {
 		return _props;
 	}
 
-	// Set Transition Information
+	// Set Browser Prefixes
 
-	function setTransitionInformation() {
+	function setBrowserPrefixes() {
 		var transitionEvents = {
 				"WebkitTransition"    : "webkitTransitionEnd",
 				"MozTransition"       : "transitionend",
@@ -670,12 +758,11 @@ var Formstone = window.Formstone = (function ($, window, document, undefined) {
 			transitionEvent       = "transitionend",
 			transitionProperty    = "",
 			transformProperty     = "",
-			test                  = document.createElement("div"),
+			testDiv               = document.createElement("div"),
 			i;
 
-
 		for (i in transitionEvents) {
-			if (transitionEvents.hasOwnProperty(i) && i in test.style) {
+			if (transitionEvents.hasOwnProperty(i) && i in testDiv.style) {
 				transitionEvent = transitionEvents[i];
 				Formstone.support.transition = true;
 				break;
@@ -685,7 +772,7 @@ var Formstone = window.Formstone = (function ($, window, document, undefined) {
 		Events.transitionEnd = transitionEvent + ".{ns}";
 
 		for (i in transitionProperties) {
-			if (transitionProperties.hasOwnProperty(i) && transitionProperties[i] in test.style) {
+			if (transitionProperties.hasOwnProperty(i) && transitionProperties[i] in testDiv.style) {
 				transitionProperty = transitionProperties[i];
 				break;
 			}
@@ -694,7 +781,7 @@ var Formstone = window.Formstone = (function ($, window, document, undefined) {
 		Formstone.transition = transitionProperty;
 
 		for (i in transformProperties) {
-			if (transformProperties.hasOwnProperty(i) && transformProperties[i] in test.style) {
+			if (transformProperties.hasOwnProperty(i) && transformProperties[i] in testDiv.style) {
 				Formstone.support.transform = true;
 				transformProperty = transformProperties[i];
 				break;
@@ -705,9 +792,6 @@ var Formstone = window.Formstone = (function ($, window, document, undefined) {
 	}
 
 	// Window resize
-
-	var ResizeTimer = null,
-		Debounce = 20;
 
 	function onWindowResize() {
 		Formstone.windowWidth  = Formstone.$window.width();
@@ -754,6 +838,11 @@ var Formstone = window.Formstone = (function ($, window, document, undefined) {
 	$(function() {
 		Formstone.$body = $("body");
 
+		// Viewport
+		$ViewportMeta = $('meta[name="viewport"]');
+		ViewportMetaOriginal = ($ViewportMeta.length) ? $ViewportMeta.attr("content") : false;
+		ViewportMetaLocked   = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0';
+
 		$Ready.resolve();
 
 		// ie8 fallback support
@@ -764,10 +853,14 @@ var Formstone = window.Formstone = (function ($, window, document, undefined) {
 
 	Events.clickTouchStart = Events.click + " " + Events.touchStart;
 
-	// Transitions
+	// Browser Prefixes
 
-	setTransitionInformation();
+	setBrowserPrefixes();
+
+	window.Formstone = Formstone;
 
 	return Formstone;
 
-})(jQuery, window, document);
+})
+
+);

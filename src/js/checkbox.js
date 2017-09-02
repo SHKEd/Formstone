@@ -1,4 +1,15 @@
-;(function ($, Formstone, undefined) {
+/* global define */
+
+(function(factory) {
+	if (typeof define === "function" && define.amd) {
+		define([
+			"jquery",
+			"./core"
+		], factory);
+	} else {
+		factory(jQuery, Formstone);
+	}
+}(function($, Formstone) {
 
 	"use strict";
 
@@ -12,7 +23,7 @@
 	function construct(data) {
 		var $parent      = this.closest("label"),
 			$label       = $parent.length ? $parent.eq(0) : $("label[for=" + this.attr("id") + "]"),
-			baseClass    = [RawClasses.base, data.customClass].join(" "),
+			baseClass    = [RawClasses.base, data.theme, data.customClass].join(" "),
 			html         = "";
 
 		data.radio = (this.attr("type") === "radio");
@@ -34,6 +45,8 @@
 		html += '</div>';
 
 		// Modify DOM
+		data.$placeholder = $('<span class="' + RawClasses.element_placeholder + '"></span>');
+		this.before(data.$placeholder);
 
 		if ($label.length) {
 			$label.addClass(RawClasses.label)
@@ -55,12 +68,12 @@
 		}
 
 		// Check disabled
-		if (this.is(":disabled") || this.is("[readonly]")) {
+		if (this.is(":disabled") /* || this.is("[readonly]") */ ) {
 			data.$checkbox.addClass(RawClasses.disabled);
 		}
 
-		// Hide original checkbox
-		this.wrap('<div class="' + RawClasses.element_wrapper + '"></div>');
+		// Move original checkbox
+		this.appendTo(data.$marker);
 
 		// Bind click events
 		this.on(Events.focus, data, onFocus)
@@ -88,8 +101,10 @@
 		data.$label.unwrap()
 				   .removeClass(RawClasses.label);
 
-		this.unwrap()
-			.off(Events.namespace);
+		data.$placeholder.before(this);
+		data.$placeholder.remove();
+
+		this.off(Events.namespace);
 	}
 
 	/**
@@ -124,7 +139,7 @@
 	 */
 
 	function update(data) {
-		var disabled    = data.$el.is(":disabled") || data.$el.is("[readonly]"),
+		var disabled    = data.$el.is(":disabled") /* || data.$el.is("[readonly]") */,
 			checked     = data.$el.is(":checked");
 
 		if (!disabled) {
@@ -163,7 +178,7 @@
 
 	function onChange(e) {
 		var data        = e.data,
-			disabled    = data.$el.is(":disabled") || data.$el.is("[readonly]"),
+			disabled    = data.$el.is(":disabled") /* || data.$el.is("[readonly]") */,
 			checked     = data.$el.is(":checked");
 
 		if (!disabled) {
@@ -194,6 +209,7 @@
 			$('input[name="' + e.data.group + '"]').not(e.data.$el).trigger("deselect");
 		}
 
+		e.data.$el.trigger(Events.focus);
 		e.data.$checkbox.addClass(RawClasses.checked);
 	}
 
@@ -204,6 +220,7 @@
 	 * @param e [object] "Event data"
 	 */
 	function onDeselect(e) {
+		e.data.$el.trigger(Events.focus);
 		e.data.$checkbox.removeClass(RawClasses.checked);
 	}
 
@@ -250,6 +267,7 @@
 			 * @param toggle [boolean] <false> "Render 'toggle' styles"
 			 * @param labels.on [string] <'ON'> "Label for 'On' position; 'toggle' only"
 			 * @param labels.off [string] <'OFF'> "Label for 'Off' position; 'toggle' only"
+			 * @param theme [string] <"fs-light"> "Theme class name"
 			 */
 
 			defaults: {
@@ -258,11 +276,12 @@
 				labels : {
 					on         : "ON",
 					off        : "OFF"
-				}
+				},
+				theme          : "fs-light"
 			},
 
 			classes: [
-				"element_wrapper",
+				"element_placeholder",
 				"label",
 				"marker",
 				"flag",
@@ -299,4 +318,6 @@
 		Events        = Plugin.events,
 		Functions     = Plugin.functions;
 
-})(jQuery, Formstone);
+})
+
+);

@@ -1,4 +1,16 @@
-;(function ($, Formstone, undefined) {
+/* global define */
+
+(function(factory) {
+	if (typeof define === "function" && define.amd) {
+		define([
+			"jquery",
+			"./core",
+			"./touch"
+		], factory);
+	} else {
+		factory(jQuery, Formstone);
+	}
+}(function($, Formstone) {
 
 	"use strict";
 
@@ -46,17 +58,18 @@
 		data.vertical = this.attr("orient") === "vertical" || data.vertical;
 		data.disabled = this.is(":disabled") || this.is("[readonly]");
 
-		html += '<div class="' + RawClasses.track + '">';
+		html += '<div class="' + RawClasses.track + '" aria-hidden="true">';
 		if (data.fill) {
 			html += '<span class="' + RawClasses.fill + '"></span>';
 		}
-		html += '<div class="' + RawClasses.handle + '">';
+		html += '<div class="' + RawClasses.handle + '" role="slider">';
 		html += '<span class="' + RawClasses.marker + '"></span>';
 		html += '</div>';
 		html += '</div>';
 
 		var baseClasses = [
 			RawClasses.base,
+			data.theme,
 			data.customClass,
 			(data.vertical) ? RawClasses.vertical : "",
 			(data.labels)   ? RawClasses.labels   : "",
@@ -153,6 +166,28 @@
 
 			data.disabled = true;
 		}
+	}
+
+	/**
+	* @method
+	* @name update
+	* @description Updates instance.
+	* @example $(".target").range("update");
+	*/
+
+	function updateInstance(data) {
+		data.min       = parseFloat(data.$el.attr("min"))  || 0;
+		data.max       = parseFloat(data.$el.attr("max"))  || 100;
+		data.step      = parseFloat(data.$el.attr("step")) || 1;
+		data.digits    = data.step.toString().length - data.step.toString().indexOf(".");
+		data.value     = parseFloat(this.val()) || (data.min + ((data.max - data.min) / 2));
+
+		if (data.labels) {
+			data.$labels.filter(Classes.label_max).html( data.formatter.call(this, (data.labels.max) ? data.labels.max : data.max) );
+			data.$labels.filter(Classes.label_min).html( data.formatter.call(this, (data.labels.max) ? data.labels.min : data.min) );
+		}
+
+		resizeInstance.call(this, data);
 	}
 
 	/**
@@ -256,7 +291,7 @@
 	 */
 
 	function onFocus(e) {
-		e.data.$container.addClass("focus");
+		e.data.$container.addClass(RawClasses.focus);
 	}
 
 	/**
@@ -267,7 +302,7 @@
 	 */
 
 	function onBlur(e) {
-		e.data.$container.removeClass("focus");
+		e.data.$container.removeClass(RawClasses.focus);
 	}
 
 	/**
@@ -300,6 +335,7 @@
 
 		data.$fill.css((data.vertical) ? "height" : "width", (perc * 100) + "%");
 		data.$handle.css((data.vertical) ? "bottom" : "left", (perc * 100) + "%");
+		/* .attr("aria-valuenow", value) */
 		value += data.min;
 
 		if (value !== data.value && value !== false && isResize !== true) {
@@ -366,6 +402,7 @@
 			 * @param labels [boolean] <true> "Flag to draw labels"
 			 * @param labels.max [string] "Max value label; defaults to max value"
 			 * @param labels.min [string] "Min value label; defaults to min value"
+			 * @param theme [string] <"fs-light"> "Theme class name"
 			 * @param vertical [boolean] <false> "Flag to render vertical range; Deprecated use 'orientation' attribute instead
 			 */
 
@@ -377,6 +414,7 @@
 					max        : false,
 					min        : false
 				},
+				theme          : "fs-light",
 				vertical       : false
 			},
 
@@ -403,7 +441,8 @@
 
 				enable        : enable,
 				disable       : disable,
-				resize        : resizeInstance
+				resize        : resizeInstance,
+				update        : updateInstance
 			}
 		}),
 
@@ -416,4 +455,6 @@
 
 		$Instances    = [];
 
-})(jQuery, Formstone);
+})
+
+);

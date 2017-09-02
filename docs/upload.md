@@ -2,13 +2,22 @@
 
 A jQuery plugin for simple drag and drop uploads.
 
+<!-- HEADER END -->
+
+<!-- NAV START -->
+
 * [Use](#use)
 * [Options](#options)
 * [Events](#events)
 * [Methods](#methods)
 * [CSS](#css)
 
-## Use 
+<!-- NAV END -->
+
+<!-- DEMO BUTTON -->
+
+## <a name="use"></a> Using Upload
+
 
 #### Main
 
@@ -16,6 +25,7 @@ A jQuery plugin for simple drag and drop uploads.
 upload.js
 upload.css
 ```
+
 
 #### Dependencies
 
@@ -84,31 +94,41 @@ $(".target").upload("abort");
 
 Upload does not store or manipulate uploaded files on the server, it simply facilitates the asynchronous upload process from the front end.
 
-## Options
+
+## <a name="options"></a> Options
 
 Set instance options by passing a valid object at initialization, or to the public `defaults` method. Custom options for a specific instance can also be set by attaching a `data-upload-options` attribute to the target elment. This attribute should contain the properly formatted JSON object representing the custom options.
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
+| `accept` | `string` | &nbsp; | Input accept attribute |
 | `action` | `string` | &nbsp; | Where to submit uploads |
 | `autoUpload` | `boolean` | `false` | Beging upload when files are dropped |
 | `beforeSend` | `function` | &nbsp; | Run before request sent, must return modified formdata or `false` to cancel |
+| `chunked` | `boolean` | `false` | Use chunked uploading, if supported |
+| `chunkSize` | `int` | `100` | Size to chunk, in kB |
 | `customClass` | `string` | `''` | Class applied to instance |
 | `dataType` | `string` | `'html'` | Data type of AJAX request |
 | `label` | `string` | `'Drag and drop files or click to select'` | Drop target text; `false` to disable |
 | `leave` | `string` | `'You have uploads pending, are you sure you want to leave this page?'` | Before leave message |
-| `maxQueue` | `int` | `2` | Number of files to simultaneously upload |
+| `maxConcurrent` | `int` | `2` | Number of files to simultaneously upload |
+| `maxFiles` | `int OR boolean` | `false` | Total number of files that can be uploaded; `false` to disable |
 | `maxSize` | `int` | `5242880` | Max file size allowed |
 | `multiple` | `true` | `true` | Flag to allow mutiple file uploads |
 | `postData` | `object` | &nbsp; | Extra data to post with upload |
 | `postKey` | `string` | `'file'` | Key to upload file as |
+| `theme` | `string` | `"fs-light"` | Theme class name |
 
-## Events
+<hr>
+## <a name="events"></a> Events
 
 Events are triggered on the target instance's element, unless otherwise stated.
 
 | Event | Description |
 | --- | --- |
+| `chunkcomplete` | File chunk complete |
+| `chunkstart` | File chunk starting |
+| `chunkerror` | File chunk error |
 | `complete` | All uploads are complete |
 | `filecomplete` | Specific upload complete |
 | `filedragenter` | File dragged into target |
@@ -120,7 +140,8 @@ Events are triggered on the target instance's element, unless otherwise stated.
 | `start` | Uploads starting |
 | `queued` | Files are queued for upload |
 
-## Methods
+<hr>
+## <a name="methods"></a> Methods
 
 Methods are publicly available to all active instances, unless otherwise stated.
 
@@ -178,7 +199,8 @@ Starts queued uploads; Use when autoUpload is set to false.
 $(".target").upload("start");
 ```
 
-## CSS
+<hr>
+## <a name="css"></a> CSS
 
 | Class | Type | Description |
 | --- | --- | --- |

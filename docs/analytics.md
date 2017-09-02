@@ -2,16 +2,26 @@
 
 A jQuery plugin for Google Universal Analytics Events.
 
+<!-- HEADER END -->
+
+<!-- NAV START -->
+
 * [Use](#use)
 * [Options](#options)
 
-## Use 
+<!-- NAV END -->
+
+<!-- DEMO BUTTON -->
+
+## <a name="use"></a> Using Analytics
+
 
 #### Main
 
 ```markup
 analytics.js
 ```
+
 
 #### Dependencies
 
@@ -69,7 +79,8 @@ Analytics will push to all available trackers, even when loaded using Google Tag
 
 Note: The [Google Analytics Debugger](https://chrome.google.com/webstore/detail/google-analytics-debugger/jnkmfdileelhofjcijamephohjechhna) extension helps to ensure events are being properly pushed. 
 
-## Options
+
+## <a name="options"></a> Options
 
 Set instance options by passing a valid object at initialization, or to the public `defaults` method.
 
@@ -81,4 +92,5 @@ Set instance options by passing a valid object at initialization, or to the publ
 | `eventTimeout` | `int` | `1000` | Event failure timeout |
 | `scrollDepth` | `boolean` | `false` | Flag to track scroll depth events |
 | `scrollStops` | `int` | `5` | Number of scroll increments to track |
+| `scrollFields` | `object` | `{}` | Additional event fields for scroll depth events |
 

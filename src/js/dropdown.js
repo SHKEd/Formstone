@@ -1,4 +1,17 @@
-;(function ($, Formstone, undefined) {
+/* global define */
+
+(function(factory) {
+	if (typeof define === "function" && define.amd) {
+		define([
+			"jquery",
+			"./core",
+			"./scrollbar",
+			"./touch"
+		], factory);
+	} else {
+		factory(jQuery, Formstone);
+	}
+}(function($, Formstone) {
 
 	"use strict";
 
@@ -21,7 +34,7 @@
 
 	function construct(data) {
 		data.multiple  = this.prop("multiple");
-		data.disabled  = this.is(":disabled") || this.is("[readonly]");
+		data.disabled  = this.prop("disabled") || this.is("[readonly]");
 		data.lastIndex = false;
 
 		if (data.multiple) {
@@ -49,9 +62,9 @@
 			$options    = $allOptions.filter("option"),
 			$label      = $("[for=" + this.attr("id") + "]");
 
-		// Swap tab index, no more interacting with the actual select!
+		// Swap tab index, no more interacting with the actual input!
 		data.tabIndex = this[0].tabIndex;
-		this[0].tabIndex   = -1;
+		this[0].tabIndex = -1;
 
 		if ($label.length) {
 			$label[0].tabIndex = -1;
@@ -60,10 +73,11 @@
 		// Build wrapper
 		var wrapperClasses = [
 			RawClasses.base,
+			data.theme,
 			data.customClass
 		];
 
-		if (data.mobile || Formstone.isMobile) {
+		if (data.mobile /* || Formstone.isMobile */) {
 			wrapperClasses.push(RawClasses.mobile);
 		} else if (data.cover) {
 			wrapperClasses.push(RawClasses.cover);
@@ -75,13 +89,34 @@
 			wrapperClasses.push(RawClasses.disabled);
 		}
 
+		// Aria
+
+		data.id = this.attr("id");
+
+		if (data.id) {
+			data.ariaId = data.id;
+		} else {
+			data.ariaId = data.rawGuid;
+		}
+
+		data.ariaId += '-dropdown';
+		data.selectedAriaId = data.ariaId + "-selected";
+
 		// Build html
-		var wrapperHtml = '<div class="' + wrapperClasses.join(" ") + '" tabindex="' + data.tabIndex + '"></div>',
-			innerHtml = "";
+		var wrapperHtml = "",
+			innerHtml   = "";
+
+		wrapperHtml += '<div class="' + wrapperClasses.join(" ") + '"id="' + data.ariaId + '" tabindex="' + data.tabIndex + '" role="listbox"';
+		if (data.multiple) {
+			wrapperHtml += ' aria-label="multi select"';
+		} else {
+			wrapperHtml += ' aria-haspopup="true" aria-live="polite" aria-labeledby="' + data.selectedAriaId + '"';
+		}
+		wrapperHtml += '></div>';
 
 		// Build inner
 		if (!data.multiple) {
-			innerHtml += '<button type="button" class="' + RawClasses.selected + '" tabindex="-1">';
+			innerHtml += '<button type="button" class="' + RawClasses.selected + '" id="' + data.selectedAriaId + '" tabindex="-1">';
 			innerHtml += $('<span></span>').text( trimText(originalLabel, data.trim) ).html();
 			innerHtml += '</button>';
 		}
@@ -106,22 +141,19 @@
 
 		buildOptions(data);
 
-		if (data.links) {
-			this.attr("aria-hidden", "true");
-		} else {
-			data.$selected.add(data.$wrapper).attr("aria-hidden", "true");
-		}
-
 		if (!data.multiple) {
 			updateOption(originalIndex, data);
 		}
 
 		// Scrollbar support
 		if ($.fn.fsScrollbar !== undefined) {
-			data.$wrapper.fsScrollbar();
+			data.$wrapper.fsScrollbar({
+				theme: data.theme
+			}).find(".fs-scrollbar-content").attr("tabindex", null);
 		}
 
 		// Bind events
+		data.$dropdown.on(Events.click, data, onClick);
 		data.$selected.on(Events.click, data, onClick);
 
 		data.$dropdown.on(Events.click, Classes.item, data, onSelect)
@@ -131,16 +163,15 @@
 		this.on(Events.change, data, onChange);
 
 		// Focus/Blur events
-		if (!Formstone.isMobile) {
+		if (!data.mobile /*!Formstone.isMobile*/) {
 
 			// Handle clicks to associated labels
 			this.on(Events.focusIn, data, function(e) {
 				e.data.$dropdown.trigger(Events.raw.focus);
 			});
 
-
 			data.$dropdown.on(Events.focusIn, data, onFocusIn)
-							.on(Events.focusOut, data, onFocusOut);
+						  .on(Events.focusOut, data, onFocusOut);
 		}
 	}
 
@@ -161,11 +192,7 @@
 			data.$wrapper.fsScrollbar("destroy");
 		}
 
-		if (data.links) {
-			this.removeAttr("aria-hidden");
-		}
-
-		data.$el[0].tabIndex    = data.tabIndex;
+		data.$el[0].tabIndex = data.tabIndex;
 
 		if (data.$label.length) {
 			data.$label[0].tabIndex = data.tabIndex;
@@ -239,9 +266,9 @@
 
 	function updateDropdown(data) {
 		// Scrollbar support
-				if ($.fn.fsScrollbar !== undefined) {
-						data.$wrapper.fsScrollbar("destroy");
-				}
+		if ($.fn.fsScrollbar !== undefined) {
+			data.$wrapper.fsScrollbar("destroy");
+		}
 
 		var index = data.index;
 
@@ -258,9 +285,11 @@
 		}
 
 		// Scrollbar support
-				if ($.fn.fsScrollbar !== undefined) {
-						data.$wrapper.fsScrollbar();
-				}
+		if ($.fn.fsScrollbar !== undefined) {
+			data.$wrapper.fsScrollbar({
+				theme: data.theme
+			}).find(".fs-scrollbar-content").attr("tabindex", null);
+		}
 	}
 
 	/**
@@ -283,7 +312,7 @@
 				classes.push(RawClasses.group);
 
 				// Disabled groups
-				if ($option.is(":disabled")) {
+				if ($option.prop("disabled")) {
 					classes.push(RawClasses.disabled);
 				}
 
@@ -304,10 +333,10 @@
 
 					opType = "span";
 				}
-				if ($option.is(":selected")) {
+				if ($option.prop("selected")) {
 					classes.push(RawClasses.item_selected);
 				}
-				if ($option.is(":disabled")) {
+				if ($option.prop("disabled")) {
 					classes.push(RawClasses.item_disabled);
 				}
 
@@ -327,7 +356,12 @@
 					html += ' data-value="' + opVal + '"';
 				}
 
-				html += ' tabindex="-1">';
+				//html += ' tabindex="-1">';
+				html += ' role="option"';
+				if ($option.prop("selected")) {
+					html += ' "aria-selected"="true"';
+				}
+				html += '>';
 
 				if (opLabel) {
 					html += opLabel;
@@ -358,18 +392,20 @@
 		var data = e.data;
 
 		if (!data.disabled) {
-			// Handle mobile, but not Firefox, unless desktop forced
-			if (!data.mobile && Formstone.isMobile && !Formstone.isFirefoxMobile && !Formstone.isIEMobile) {
-				var el = data.$el[0];
+			// // Handle mobile, but not Firefox, unless desktop forced
+			// if (!data.mobile && Formstone.isMobile && !Formstone.isFirefoxMobile && !Formstone.isIEMobile) {
+			// 	var el = data.$el[0];
+			//
+			// 	if (Document.createEvent) { // All
+			// 		var evt = Document.createEvent("MouseEvents");
+			// 		evt.initMouseEvent("mousedown", false, true, Window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+			// 		el.dispatchEvent(evt);
+			// 	} else if (el.fireEvent) { // IE
+			// 		el.fireEvent("onmousedown");
+			// 	}
+			// } else {
 
-				if (Document.createEvent) { // All
-					var evt = Document.createEvent("MouseEvents");
-					evt.initMouseEvent("mousedown", false, true, Window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
-					el.dispatchEvent(evt);
-				} else if (el.fireEvent) { // IE
-					el.fireEvent("onmousedown");
-				}
-			} else {
+			if (!data.mobile) {
 				// Delegate intent
 				if (data.closed) {
 					openOptions(data);
@@ -403,13 +439,12 @@
 	function openOptions(data) {
 		// Make sure it's not already open
 		if (data.closed) {
-			var offset = data.$dropdown.offset(),
-				bodyHeight = $Body.outerHeight(),
-				optionsHeight = data.$wrapper.outerHeight(true),
-				selectedOffset = (data.index >= 0) ? data.$items.eq(data.index).position() : { left: 0, top: 0 };
+			var windowHeight   = $Window.height(),
+				optionsHeight  = data.$wrapper.outerHeight(true),
+				boundingRect   = data.$dropdown[0].getBoundingClientRect();
 
 			// Calculate bottom of document
-			if (offset.top + optionsHeight > bodyHeight - data.bottomEdge) {
+			if (boundingRect.bottom + optionsHeight > windowHeight - data.bottomEdge) {
 				data.$dropdown.addClass(RawClasses.bottom);
 			}
 
@@ -526,15 +561,15 @@
 
 	function onChange(e, internal) {
 		var $target = $(this),
-			data = e.data;
+			data    = e.data;
 
 		if (!internal && !data.multiple) {
-			var index = data.$options.index( data.$options.filter("[value='" + escapeText($target.val()) + "']") );
+			var index = data.$options.index( data.$options.filter(":selected") );
 
 			data.focusIndex = index;
 
 			updateOption(index, data);
-			handleChange(data);
+			handleChange(data, true);
 		}
 	}
 
@@ -570,7 +605,7 @@
 	 * @param e [object] "Event data"
 	 */
 
-	function onFocusOut(e, internal) {
+	function onFocusOut(e) {
 		Functions.killEvent(e);
 
 		var $target = $(e.currentTarget),
@@ -689,22 +724,23 @@
 		// Check for disabled options
 		if (!isDisabled) {
 			if (data.multiple) {
-				if (Formstone.isMobile) {
-					if (!isDisabled) {
-						if (isSelected) {
-							$option.prop("selected", null);
-							$item.removeClass(RawClasses.item_selected);
-						} else {
-							$option.prop("selected", true);
-							$item.addClass(RawClasses.item_selected);
-						}
+				if (data.mobile /* Formstone.isMobile*/) {
+					if (isSelected) {
+						$option.prop("selected", null)
+							   .attr("aria-selected", null);
+						$item.removeClass(RawClasses.item_selected);
+					} else {
+						$option.prop("selected", true)
+							   .attr("aria-selected", true);
+						$item.addClass(RawClasses.item_selected);
 					}
 				} else {
 					if (shiftKey && data.lastIndex !== false) {
 						var start = (data.lastIndex > index)  ? index : data.lastIndex,
 							end   = ((data.lastIndex > index) ? data.lastIndex : index) + 1;
 
-						data.$options.prop("selected", null);
+						data.$options.prop("selected", null)
+									 .attr("aria-selected", null);
 						data.$items.filter(Classes.item_selected)
 							.removeClass(RawClasses.item_selected);
 
@@ -712,20 +748,24 @@
 						data.$items.slice(start, end).not(Classes.item_disabled).addClass(RawClasses.item_selected);
 					} else if (metaKey) {
 						if (isSelected) {
-							$option.prop("selected", null);
+							$option.prop("selected", null)
+								   .attr("aria-selected", null);
 							$item.removeClass(RawClasses.item_selected);
 						} else {
-							$option.prop("selected", true);
+							$option.prop("selected", true)
+								   .attr("aria-selected", true);
 							$item.addClass(RawClasses.item_selected);
 						}
 
 						data.lastIndex = index;
 					} else {
-						data.$options.prop("selected", null);
+						data.$options.prop("selected", null)
+									 .attr("aria-selected", null);
 						data.$items.filter(Classes.item_selected)
 							.removeClass(RawClasses.item_selected);
 
-						$option.prop("selected", true);
+						$option.prop("selected", true)
+							   .attr("aria-selected", true);
 						$item.addClass(RawClasses.item_selected);
 
 						data.lastIndex = index;
@@ -736,10 +776,10 @@
 					var label = $option.data("label") || $item.html();
 
 					data.$selected.html(label)
-									.removeClass(Classes.item_placeholder);
+								  .removeClass(Classes.item_placeholder);
 
 					data.$items.filter(Classes.item_selected)
-								 .removeClass(RawClasses.item_selected);
+							   .removeClass(RawClasses.item_selected);
 
 					data.$el[0].selectedIndex = index;
 
@@ -779,11 +819,13 @@
 	 * @param data [object] "Instance data"
 	 */
 
-	function handleChange(data) {
+	function handleChange(data, external) {
 		if (data.links) {
 			launchLink(data);
 		} else {
-			data.$el.trigger(Events.raw.change, [ true ]);
+			if (!external) {
+				data.$el.trigger(Events.raw.change, [ true ]);
+			}
 		}
 	}
 
@@ -848,7 +890,7 @@
 	 * @dependency jQuery
 	 * @dependency core.js
 	 * @dependency scrollbar.js (optional)
-	 * @dependency touch.js (for scrollbar, optional)
+	 * @dependency touch.js (optional, for scrollbar)
 	 */
 
 	var Plugin = Formstone.Plugin("dropdown", {
@@ -862,7 +904,8 @@
 			 * @param label [string] <''> "Label displayed before selection"
 			 * @param external [boolean] <false> "Open options as links in new window"
 			 * @param links [boolean] <false> "Open options as links in same window"
-			 * @param mobile [boolean] <false> "Force desktop interaction on mobile"
+			 * @param mobile [boolean] <false> "Use native browser UI on mobile"
+			 * @param theme [string] <"fs-light"> "Theme class name"
 			 * @param trim [int] <0> "Trim options to specified length; 0 to disable”
 			 */
 			defaults: {
@@ -873,6 +916,7 @@
 				external       : false,
 				links          : false,
 				mobile         : false,
+				theme          : "fs-light",
 				trim           : 0
 			},
 
@@ -927,4 +971,6 @@
 		Document      = Formstone.document,
 		$Body         = null;
 
-})(jQuery, Formstone);
+})
+
+);
